@@ -1,0 +1,48 @@
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+*.csr
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+*~
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# Docker
+docker-compose.override.yml
+
+# Build artifacts
+dist/
+build/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Credentials / tokens
+*credentials*
+*secrets*
+*.secret
