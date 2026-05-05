@@ -1,0 +1,76 @@
+[agent]
+  log_level = "info"
+  batch_interval = "1s"
+  batch_size = 1024
+  buffer_max_events = 65536
+
+[sources.hermes_logs]
+type = "file"
+include = ["/var/log/hermes/agent.log"]
+read_from = "beginning"
+glob_interval_seconds = 1
+file_key = "log_file"
+
+[sources.mcp_logs]
+type = "file"
+include = ["/var/log/hermes/mcp.log"]
+read_from = "beginning"
+glob_interval_seconds = 1
+file_key = "mcp_file"
+ignore_older = "1h"
+
+[transforms.parse_hermes_json]
+type = "remap"
+inputs = ["hermes_logs"]
+source = """
+. = parse_json!(.message)
+. timestamp = .asctime
+. level = downcase!(.levelname)
+. logger = .name
+. service = "hermes-agent"
+. host = get_env_var("HOSTNAME") ?? "unknown"
+. trace_id = .trace_id ?? uuid_v4()
+del(.asctime, .levelname, .name)
+"""
+
+[transforms.parse_mcp_json]
+type = "remap"
+inputs = ["mcp_logs"]
+source = """
+. = parse_json!(.message)
+. timestamp = .asctime
+. level = downcase!(.levelname)
+. logger = .name
+. service = "proxmox-mcp"
+. component = "mcp-server"
+. host = get_env_var("HOSTNAME") ?? "unknown"
+. trace_id = .trace_id ?? uuid_v4()
+del(.asctime, .levelname, .name)
+"""
+
+[sinks.loki]
+type = "loki"
+inputs = ["parse_hermes_json", "parse_mcp_json"]
+endpoint = "http://${LOKI_HOST}:3100"
+labels = {
+  env = "${ENV}",
+  service = "{{ service }}",
+  host = "{{ host }}",
+  level = "{{ level }}",
+}
+label_keys = ["service", "host", "level", "logger"]
+request.concurrency = 10
+request.batch_size = 1024
+compression = "gzip"
+healthcheck.enabled = true
+
+[sinks.loki.buffer]
+type = "disk"
+max_size = 5368704000
+when_full = "block"
+num_shards = 4
+
+[sinks.console]
+type = "console"
+inputs = ["parse_hermes_json"]
+encoding = "json"

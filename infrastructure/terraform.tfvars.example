@@ -1,0 +1,16 @@
+proxmox_api_url      = "https://192.168.1.12:8006/api2/json"
+proxmox_token_id     = "deployer@pam!terraform"
+proxmox_token_secret = "your-token-secret-here"
+pm_tls_insecure      = false
+
+proxmox_node   = "pve12"
+proxmox_storage = "local-lvm"
+vm_template    = "debian-12-cloudinit-template"
+vm_memory      = 8192
+vm_cores       = 4
+vm_disk_size   = "100"
+start_vmid     = 9000
+
+ssh_keys = <<-EOF
+  ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... your-key-name
+EOF
