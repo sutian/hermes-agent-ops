@@ -1,51 +1,90 @@
-#!/usr/bin/env bash
+#!/bin/bash
+# install-agent.sh — Install Vector agent on hermes-agent host
+# Usage: ./install-agent.sh <LOKI_HOST> <AGENT_ID> <PLATFORM> <COMPONENT>
 set -euo pipefail
 
-LOKI_HOST="${LOKI_HOST:-CHANGE_ME}"
-ENV="${ENV:-production}"
+LOKI_HOST="${1:?Usage: $0 <LOKI_HOST> <AGENT_ID> <PLATFORM> [COMPONENT]}"
+AGENT_ID="${2:?}"
+PLATFORM="${3:?}"
+COMPONENT="${4:-proxmox-mcp}"
 
-echo "==> Installing Vector Agent for hermes-agent-ops"
-echo "    Loki host: ${LOKI_HOST}"
-echo "    Env: ${ENV}"
+ARCH="$(uname -m)"
+VECTOR_VERSION="0.55.1"
 
-if [ ! -f /etc/debian_version ]; then
-  echo "ERROR: This script only supports Debian/Ubuntu"
-  exit 1
+case "$ARCH" in
+  x86_64)  ARCH_STR="x86_64-unknown-linux-musl" ;;
+  aarch64) ARCH_STR="aarch64-unknown-linux-musl" ;;
+  *)       echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
+esac
+
+echo "[*] Installing Vector $VECTOR_VERSION for hermes-agent-ops"
+echo "    LOKI_HOST=$LOKI_HOST"
+echo "    AGENT_ID=$AGENT_ID"
+echo "    PLATFORM=$PLATFORM"
+echo "    COMPONENT=$COMPONENT"
+
+# Create vector user and group
+if ! id -u vector >/dev/null 2>&1; then
+  echo "[*] Creating vector user"
+  useradd --system --no-create-home --shell /usr/sbin/nologin vector
 fi
 
-VECTOR_VERSION="0.55.0"
-echo "==> Downloading Vector ${VECTOR_VERSION}"
-
+# Download and install Vector binary
+echo "[*] Downloading Vector binary"
+TMPDIR="$(mktemp -d)"
 curl -fsSL \
-  "https://github.com/vectordotdev/vector/releases/download/v${VECTOR_VERSION}/vector-${VECTOR_VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
-  -o /tmp/vector.tar.gz
+  "https://github.com/vectordotdev/vector/releases/download/v${VECTOR_VERSION}/vector-${VECTOR_VERSION}-${ARCH_STR}.tar.gz" \
+  -o "$TMPDIR/vector.tar.gz"
 
-mkdir -p /opt/vector
-tar -xzf /tmp/vector.tar.gz -C /opt/vector --strip-components=1
-ln -sf /opt/vector/bin/vector /usr/local/bin/vector
-rm -f /tmp/vector.tar.gz
+echo "[*] Extracting Vector"
+tar -xzf "$TMPDIR/vector.tar.gz" -C "$TMPDIR"
+install -o root -g root -m 0755 "$TMPDIR/vector/bin/vector" /usr/local/bin/vector
 
-echo "==> Vector installed: $(vector --version)"
+# Create directories
+echo "[*] Creating directories"
+mkdir -p /var/lib/vector /etc/vector /var/log/hermes
+chown vector:vector /var/lib/vector /var/log/hermes
 
-mkdir -p /var/log/hermes /etc/vector /var/lib/vector
+# Install Vector config from template
+echo "[*] Generating /etc/vector/vector.toml"
+sed -e "s/\${LOKI_HOST}/$LOKI_HOST/g" \
+    -e "s/\${AGENT_ID}/$AGENT_ID/g" \
+    -e "s/\${PLATFORM}/$PLATFORM/g" \
+    /opt/hermes-agent-ops/agent/vector.toml.template > /etc/vector/vector.toml
 
-curl -fsSL \
-  "https://raw.githubusercontent.com/sutian/hermes-agent-ops/main/agent/vector.toml.template" \
-  -o /etc/vector/vector.toml
+echo "[*] Generating /etc/vector/mcp-vector.toml"
+sed -e "s/\${LOKI_HOST}/$LOKI_HOST/g" \
+    -e "s/\${COMPONENT}/$COMPONENT/g" \
+    /opt/hermes-agent-ops/agent/mcp-vector.toml.template > /etc/vector/mcp-vector.toml
 
-sed -i "s/\${LOKI_HOST}/${LOKI_HOST}/g" /etc/vector/vector.toml
-sed -i "s/\${ENV}/${ENV}/g" /etc/vector/vector.toml
+chown vector:vector /etc/vector/*.toml
+chmod 0640 /etc/vector/*.toml
 
-curl -fsSL \
-  "https://raw.githubusercontent.com/sutian/hermes-agent-ops/main/agent/systemd/vector-agent.service" \
-  -o /etc/systemd/system/vector-agent.service
-
+# Install systemd units
+echo "[*] Installing systemd units"
+cp /opt/hermes-agent-ops/agent/systemd/vector-agent.service /etc/systemd/system/
+cp /opt/hermes-agent-ops/agent/systemd/mcp-vector-agent.service /etc/systemd/system/
+systemd-run --systemd-unit=vector-agent.service systemctl daemon-reload || true
 systemctl daemon-reload
-systemctl enable vector-agent
-systemctl restart vector-agent
 
-echo "==> Vector agent started"
+echo "[*] Starting vector-agent service"
+systemctl enable vector-agent --now
+systemctl enable mcp-vector-agent --now
+
+echo "[*] Verifying installation"
+sleep 2
+systemctl status vector-agent --no-pager
+systemctl status mcp-vector-agent --no-pager
+
+# Verify Vector API is responding
+if curl -sf http://127.0.0.1:9001/health > /dev/null; then
+  echo "[+] Vector agent API is healthy"
+else
+  echo "[!] Warning: Vector agent API not responding"
+fi
+
 echo ""
-echo "==> Installation complete"
-echo "    Config: /etc/vector/vector.toml"
-echo "    Logs:   journalctl -u vector-agent -f"
+echo "[+] Vector agent installed successfully"
+echo "    Logs: journalctl -u vector-agent -f"
+echo "    Metrics: curl http://127.0.0.1:9090/metrics"
+rm -rf "$TMPDIR"

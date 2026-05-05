@@ -1,16 +1,35 @@
-proxmox_api_url      = "https://192.168.1.12:8006/api2/json"
-proxmox_token_id     = "deployer@pam!terraform"
-proxmox_token_secret = "your-token-secret-here"
-pm_tls_insecure      = false
+# hermes-agent-ops — Terraform variables
+# Copy to terraform.tfvars and fill in real values
 
-proxmox_node   = "pve12"
-proxmox_storage = "local-lvm"
-vm_template    = "debian-12-cloudinit-template"
-vm_memory      = 8192
-vm_cores       = 4
-vm_disk_size   = "100"
-start_vmid     = 9000
+# Proxmox connection
+proxmox_host     = "192.168.1.1"
+proxmox_user     = "root@pam"
+proxmox_password = "your_proxmox_password_here"
+proxmox_node     = "pve"
 
-ssh_keys = <<-EOF
-  ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... your-key-name
-EOF
+# VM settings
+vm_template  = "9000"
+vm_storage   = "local-lvm"
+
+# Log server VM config
+log_server_vm = {
+  name       = "hermes-log-server"
+  memory     = 8192
+  cores      = 4
+  disk_size  = "100G"
+  ip         = "dhcp"
+  net_bridge = "vmbr0"
+}
+
+# Network
+log_server_ip  = "192.168.1.12"
+allowed_sources = ["192.168.1.0/24"]
+
+# Deployment
+environment          = "production"
+log_retention_days   = 30
+prometheus_retention_days = 15
+loki_resource_limits = {
+  cpu_limit    = "2.0"
+  memory_limit = "4G"
+}

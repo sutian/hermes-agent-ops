@@ -1,14 +1,25 @@
-output "log_server_ip" {
-  description = "Log server VM IP address"
-  value       = proxmox_vm_qemu.log_server[0].default_ipv4
+output "log_server_url" {
+  description = "Log server Loki HTTP endpoint"
+  value       = "http://${var.log_server_ip}:3100"
 }
 
-output "log_server_vmid" {
-  description = "Log server VM ID"
-  value       = proxmox_vm_qemu.log_server[0].vmid
+output "grafana_url" {
+  description = "Grafana URL"
+  value       = "http://${var.log_server_ip}:3001"
 }
 
-output "log_server_name" {
-  description = "Log server VM name"
-  value       = proxmox_vm_qemu.log_server[0].name
+output "prometheus_url" {
+  description = "Prometheus URL"
+  value       = "http://${var.log_server_ip}:9090"
+}
+
+output "deployment_guide" {
+  description = "Post-terraform deployment steps"
+  value = <<-EOT
+    1. terraform apply -target=null_resource.log_server_vm
+    2. Note VM IP from Proxmox console (DHCP)
+    3. terraform apply to configure firewall + hardening
+    4. On log server: git clone && docker compose up -d
+    5. On each hermes host: ./agent/install-agent.sh <LOG_SERVER_IP> <AGENT_ID> <PLATFORM>
+  EOT
 }

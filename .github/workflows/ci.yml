@@ -88,6 +88,25 @@ jobs:
       - name: Validate compose file
         run: docker compose -f docker/docker-compose.yml config --quiet
 
+  semgrep:
+    name: Static Analysis (Semgrep)
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: semgrep --config=auto -- Sarif --output=semgrep.sarif --force-color .
+        continue-on-error: true
+
+      - name: Upload Semgrep results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+
   validate-terraform:
     name: Validate Terraform
     runs-on: ubuntu-latest
@@ -107,3 +126,16 @@ jobs:
       - name: Terraform Validate
         working-directory: infrastructure
         run: terraform validate
+
+  validate-shell:
+    name: Shell Script Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Lint shell scripts
+        run: shellcheck agent/install-agent.sh
