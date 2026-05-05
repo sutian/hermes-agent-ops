@@ -10,7 +10,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  hermes-agent (pve11 / 192.168.1.11)                  │
+│  hermes-agent (pve11 / &lt;HERMES_HOST_IP&gt;)                  │
 │  Vector Agent ──── tail /var/log/hermes/               │
 │    ├── agent.log    (hermes logs)                      │
 │    └── mcp.log     (MCP/Proxmox logs)                 │
@@ -18,7 +18,7 @@
                          │ mTLS / TLS 1.3
                          ▼
 ┌─────────────────────────────────────────────────────────┐
-│  Log Server VM (pve12 / NEW)                           │
+│  Log Server VM (pve12 / &lt;LOG_SERVER_IP&gt;)                           │
 │                                                          │
 │  ┌──────────┐  ┌───────────┐  ┌────────────┐           │
 │  │  Loki    │  │ Grafana   │  │ Prometheus │           │
@@ -134,11 +134,11 @@ type = "loki"
   "logger": "hermes.agent",
   "message": "Tool executed",
   "service": "hermes-agent",
-  "host": "192.168.1.11",
+  "host": "<HERMES_HOST_IP>",
   "agent_id": "main",
   "session_id": "abc123",
   "platform": "telegram",
-  "user": "OxTigger",
+  "user": "<USER_NAME>",
   "tool_name": "proxmox_vm_create",
   "duration_ms": 234,
   "status": "success",
@@ -158,14 +158,14 @@ type = "loki"
   "message": "Tool called",
   "service": "proxmox-mcp",
   "component": "mcp-server",
-  "host": "192.168.1.9",
+  "host": "<MCP_HOST_IP>",
   "mcp_tool_name": "proxmox_vm_create",
   "mcp_request_id": "req-abc123",
   "mcp_session_id": "sess-xyz",
   "duration_ms": 234,
   "status": "success",
   "error_code": null,
-  "user": "OxTigger",
+  "user": "<USER_NAME>",
   "ip_source": "127.0.0.1",
   "trace_id": "trace-abc123"
 }
@@ -175,10 +175,10 @@ type = "loki"
 
 ```
 # Agent logs
-{service="hermes-agent", host="192.168.1.11", level="info", platform="telegram"}
+{service="hermes-agent", host="<HERMES_HOST_IP>", level="info", platform="telegram"}
 
 # MCP logs
-{service="mcp", component="proxmox-mcp", host="192.168.1.9", status="success"}
+{service="mcp", component="proxmox-mcp", host="<MCP_HOST_IP>", status="success"}
 ```
 
 ---

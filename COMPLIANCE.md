@@ -38,9 +38,9 @@ Log format aligned with OCSF schema:
   "timestamp": "2026-05-05T13:40:00.000Z",
   "level": "INFO",
   "service": "hermes-agent",
-  "host": "192.168.1.11",
+  "host": "<HERMES_HOST_IP>",
   "message": "Tool executed",
-  "user": "OxTigger",
+  "user": "<USER_NAME>",
   "status": "success"
 }
 ```
